@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Muro de notas</title>
+  <style>
+    /* ---------- Colores y medidas generales ---------- */
+    :root {
+      --fondo: #f4efe6;
+      --texto: #2b2b2b;
+      --suave: #6b6b6b;
+      --borde: #d9d2c5;
+      --acento: #3d6cb9;
+      --ok: #1f7a3d;
+      --error: #b3261e;
+      --amarillo: #fff3a3;
+      --rosa: #ffc9de;
+      --verde: #c6f0c2;
+      --azul: #c4e0ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--fondo);
+      color: var(--texto);
+      line-height: 1.4;
+    }
+
+    /* ---------- Franja de estado fija arriba ---------- */
+    #estado {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-family: ui-monospace, Consolas, monospace;
+      text-align: center;
+      color: #fff;
+      background: var(--suave);
+    }
+    #estado.ok { background: var(--ok); }
+    #estado.error { background: var(--error); }
+
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 56px 16px 32px;   /* el hueco de arriba es para la franja de estado */
+    }
+
+    h1 {
+      margin: 8px 0 16px;
+      font-size: 28px;
+    }
+
+    /* ---------- Formulario ---------- */
+    form {
+      background: #fff;
+      border: 1px solid var(--borde);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px;
+      font: inherit;
+      border: 1px solid var(--borde);
+      border-radius: 8px;
+      resize: vertical;
+    }
+
+    .fila {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .colores { display: flex; gap: 8px; }
+
+    /* Cada color es un radio button disfrazado de círculo */
+    .colores input { position: absolute; opacity: 0; }
+    .colores label {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--borde);
+      cursor: pointer;
+    }
+    .colores input:checked + label { border: 3px solid var(--texto); }
+    .colores input:focus-visible + label { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+    #contador { color: var(--suave); font-size: 14px; margin-left: auto; }
+
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+    }
+
+    #publicar {
+      padding: 10px 20px;
+      background: var(--acento);
+      color: #fff;
+      font-weight: 600;
+    }
+    #publicar:disabled { opacity: 0.6; cursor: wait; }
+
+    #mensaje { color: var(--error); margin: 8px 0 0; min-height: 1.4em; }
+
+    /* ---------- Tablero de post-its ---------- */
+    #tablero {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .nota {
+      display: flex;
+      flex-direction: column;
+      min-height: 160px;
+      padding: 14px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transform: rotate(-1deg);
+    }
+    .nota:nth-child(even) { transform: rotate(1deg); }
+
+    .nota.amarillo { background: var(--amarillo); }
+    .nota.rosa     { background: var(--rosa); }
+    .nota.verde    { background: var(--verde); }
+    .nota.azul     { background: var(--azul); }
+
+    .nota p {
+      flex: 1;
+      margin: 0 0 12px;
+      white-space: pre-wrap;        /* respeta los saltos de línea */
+      overflow-wrap: anywhere;      /* corta palabras muy largas */
+    }
+
+    .nota .pie {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--suave);
+    }
+    .nota .pie time { margin-right: auto; }
+    .nota .pie button {
+      padding: 6px 10px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+    .nota .pie button:hover { background: #fff; }
+
+    #vacio { color: var(--suave); text-align: center; }
+  </style>
+</head>
+<body>
+
+  <div id="estado" role="status">Comprobando estado…</div>
+
+  <main>
+    <h1>Muro de notas</h1>
+
+    <form id="formulario">
+      <label for="texto" hidden>Texto de la nota</label>
+      <textarea id="texto" maxlength="280" placeholder="Escribe algo para el muro…" required></textarea>
+
+      <div class="fila">
+        <div class="colores" role="radiogroup" aria-label="Color de la nota">
+          <input type="radio" name="color" id="c-amarillo" value="amarillo" checked>
+          <label for="c-amarillo" style="background: var(--amarillo)" title="Amarillo"></label>
+          <input type="radio" name="color" id="c-rosa" value="rosa">
+          <label for="c-rosa" style="background: var(--rosa)" title="Rosa"></label>
+          <input type="radio" name="color" id="c-verde" value="verde">
+          <label for="c-verde" style="background: var(--verde)" title="Verde"></label>
+          <input type="radio" name="color" id="c-azul" value="azul">
+          <label for="c-azul" style="background: var(--azul)" title="Azul"></label>
+        </div>
+        <span id="contador">0 / 280</span>
+        <button type="submit" id="publicar">Publicar</button>
+      </div>
+      <p id="mensaje"></p>
+    </form>
+
+    <section id="tablero" aria-label="Notas"></section>
+    <p id="vacio" hidden>Todavía no hay notas. ¡Escribe la primera!</p>
+  </main>
+
+  <script>
+    // Todas las peticiones van a /api/..., y Nginx las reenvía al backend.
+    const API = "/api";
+
+    const formulario = document.getElementById("formulario");
+    const campoTexto = document.getElementById("texto");
+    const contador = document.getElementById("contador");
+    const botonPublicar = document.getElementById("publicar");
+    const mensaje = document.getElementById("mensaje");
+    const tablero = document.getElementById("tablero");
+    const vacio = document.getElementById("vacio");
+    const franjaEstado = document.getElementById("estado");
+
+    // ---------- Franja de estado: se consulta cada 10 segundos ----------
+    async function comprobarEstado() {
+      try {
+        const respuesta = await fetch(API + "/estado");
+        const estado = await respuesta.json();
+        const todoBien = estado.api === "ok" && estado.bd === "ok";
+        franjaEstado.textContent =
+          "API: " + estado.api.toUpperCase() +
+          " · BD: " + estado.bd.toUpperCase() +
+          " · contenedor: " + estado.contenedor;
+        franjaEstado.className = todoBien ? "ok" : "error";
+      } catch (error) {
+        // Si ni siquiera contesta, el problema está en la API (o en Nginx)
+        franjaEstado.textContent = "API: ERROR · BD: ? · contenedor: ?";
+        franjaEstado.className = "error";
+      }
+    }
+
+    // ---------- Notas ----------
+    async function cargarNotas() {
+      try {
+        const respuesta = await fetch(API + "/notas");
+        if (!respuesta.ok) throw new Error();
+        const notas = await respuesta.json();
+        pintarNotas(notas);
+      } catch (error) {
+        mensaje.textContent = "No se han podido cargar las notas.";
+      }
+    }
+
+    function pintarNotas(notas) {
+      tablero.replaceChildren();
+      vacio.hidden = notas.length > 0;
+      for (const nota of notas) {
+        tablero.appendChild(crearPostit(nota));
+      }
+    }
+
+    // Construimos el HTML con createElement y textContent (nunca innerHTML):
+    // así, si alguien escribe <script> en una nota, se muestra como texto.
+    function crearPostit(nota) {
+      const postit = document.createElement("article");
+      postit.className = "nota " + nota.color;
+
+      const texto = document.createElement("p");
+      texto.textContent = nota.texto;
+
+      const pie = document.createElement("div");
+      pie.className = "pie";
+
+      const fecha = document.createElement("time");
+      fecha.dateTime = nota.creada;
+      fecha.textContent = new Date(nota.creada).toLocaleString("es-ES", {
+        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
+      });
+
+      const botonLike = document.createElement("button");
+      botonLike.type = "button";
+      botonLike.textContent = "❤ " + nota.likes;
+      botonLike.title = "Me gusta";
+      botonLike.addEventListener("click", () => darLike(nota.id));
+
+      const botonBorrar = document.createElement("button");
+      botonBorrar.type = "button";
+      botonBorrar.textContent = "🗑";
+      botonBorrar.title = "Borrar";
+      botonBorrar.setAttribute("aria-label", "Borrar nota");
+      botonBorrar.addEventListener("click", () => borrar(nota.id));
+
+      pie.append(fecha, botonLike, botonBorrar);
+      postit.append(texto, pie);
+      return postit;
+    }
+
+    async function publicar(evento) {
+      evento.preventDefault();
+      mensaje.textContent = "";
+      botonPublicar.disabled = true;
+
+      const nuevaNota = {
+        texto: campoTexto.value,
+        color: formulario.elements.color.value
+      };
+
+      try {
+        const respuesta = await fetch(API + "/notas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nuevaNota)
+        });
+        if (!respuesta.ok) {
+          // El backend devuelve {"error": "..."} con el motivo
+          const cuerpo = await respuesta.json().catch(() => ({}));
+          mensaje.textContent = cuerpo.error || "No se ha podido publicar la nota.";
+          return;
+        }
+        campoTexto.value = "";
+        actualizarContador();
+        await cargarNotas();
+      } catch (error) {
+        mensaje.textContent = "No se ha podido conectar con la API.";
+      } finally {
+        botonPublicar.disabled = false;
+      }
+    }
+
+    async function darLike(id) {
+      await fetch(API + "/notas/" + id + "/like", { method: "POST" });
+      await cargarNotas();
+    }
+
+    async function borrar(id) {
+      if (!confirm("¿Borrar esta nota?")) return;
+      await fetch(API + "/notas/" + id, { method: "DELETE" });
+      await cargarNotas();
+    }
+
+    function actualizarContador() {
+      contador.textContent = campoTexto.value.length + " / 280";
+    }
+
+    // ---------- Arranque ----------
+    formulario.addEventListener("submit", publicar);
+    campoTexto.addEventListener("input", actualizarContador);
+
+    cargarNotas();
+    comprobarEstado();
+    setInterval(comprobarEstado, 10000);
+  </script>
+</body>
+</html>

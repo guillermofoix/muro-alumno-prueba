@@ -1,0 +1,5 @@
+# Los scripts de Linux deben tener fin de línea LF aunque se clone en Windows
+mvnw text eol=lf
+*.sh text eol=lf
+# Los scripts de Windows, CRLF
+*.cmd text eol=crlf

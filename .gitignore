@@ -1,0 +1,19 @@
+# Variables de entorno reales: NUNCA se suben al repositorio (usa .env.example como plantilla)
+.env
+
+# Resultado de compilar con Maven
+target/
+
+# Ficheros de IDEs y editores
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.swp
+
+# Ficheros del sistema operativo
+.DS_Store
+Thumbs.db
