@@ -1,0 +1,32 @@
+# LABORATORIO (AWS): la base de datos es RDS, así que aquí no hay postgres.
+# Las variables se leen del fichero .env de la instancia EC2.
+# Arranque:  docker compose -f docker-compose.lab.yml up -d --build
+
+services:
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: ${DB_HOST:?Falta DB_HOST (endpoint de RDS) en el fichero .env}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-muronotas}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en el fichero .env}
+      DB_SSLMODE: ${DB_SSLMODE:-require} # RDS admite SSL: lo pedimos
+    # Sin healthcheck: ver el comentario en docker-compose.yml
+    networks:
+      - muro
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      # Solo en 127.0.0.1: desde fuera no se ve; se entra por túnel SSH
+      - "127.0.0.1:80:80"
+    depends_on:
+      - backend
+    networks:
+      - muro
+    restart: unless-stopped
+
+networks:
+  muro:

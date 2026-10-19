@@ -1,0 +1,4 @@
+# Solo necesitamos index.html y nginx.conf; el resto no entra en la imagen
+*
+!index.html
+!nginx.conf

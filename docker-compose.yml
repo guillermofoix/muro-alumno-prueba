@@ -1,0 +1,60 @@
+# DESARROLLO: todo en tu máquina, incluida la base de datos en un contenedor.
+# Arranque:  cp .env.example .env   y después   docker compose up --build
+# Web:       http://localhost:8080
+
+services:
+  postgres:
+    # Versión fija para que todos tengamos la misma
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-muronotas}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en el fichero .env}
+    volumes:
+      # Los datos sobreviven aunque borres el contenedor
+      - datos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready viene incluido en la imagen de postgres
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - muro
+    restart: unless-stopped
+    # Sin "ports": la BD solo es accesible desde la red interna "muro"
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: postgres # nombre del servicio de arriba
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-muronotas}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en el fichero .env}
+      DB_SSLMODE: disable # el postgres local no usa SSL
+    depends_on:
+      postgres:
+        condition: service_healthy # no arranca hasta que postgres responda
+    # Sin healthcheck propio: haría falta curl/wget dentro de la imagen y no lo
+    # necesitamos; el estado se ve en la web (/api/estado).
+    networks:
+      - muro
+    restart: unless-stopped
+    # Sin "ports": solo Nginx habla con el backend
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80" # único puerto publicado: localhost:8080 -> Nginx
+    depends_on:
+      - backend
+    networks:
+      - muro
+    restart: unless-stopped
+
+networks:
+  muro:
+
+volumes:
+  datos-postgres:

@@ -1,0 +1,9 @@
+# La imagen se compila con Maven dentro de Docker: solo hacen falta pom.xml y src/
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.env
+.idea/
+.vscode/
+*.iml
